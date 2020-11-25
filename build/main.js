@@ -247,26 +247,27 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var koa_router__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! koa-router */ "koa-router");
 /* harmony import */ var koa_router__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(koa_router__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _store__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./store */ "./src/garment/store.js");
+/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils */ "./src/utils/index.js");
 
 
+ // const Koa = require('koa');
+// const app = new Koa();
+// const server = require('http').createServer(app.callback());
+// const WebSocket = require('ws');
+// const wss = new WebSocket.Server({ server });
 
-const Koa = __webpack_require__(/*! koa */ "koa");
-
-const app = new Koa();
-
-const server = __webpack_require__(/*! http */ "http").createServer(app.callback());
-
-const WebSocket = __webpack_require__(/*! ws */ "ws");
-
-const wss = new WebSocket.Server({
-  server
-});
 const router = new koa_router__WEBPACK_IMPORTED_MODULE_0___default.a();
 
 const createGarment = async (ctx, garment, response) => {
   try {
+    const userId = ctx.state.user._id;
+    garment.userId = userId;
     response.body = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].insert(garment);
     response.status = 201;
+    Object(_utils__WEBPACK_IMPORTED_MODULE_2__["broadcast"])(userId, {
+      type: 'created',
+      payload: garment
+    });
   } catch (err) {
     response.body = {
       message: err.message
@@ -278,17 +279,35 @@ const createGarment = async (ctx, garment, response) => {
 router.get('/', async ctx => {
   const response = ctx.response; // ctx.body = 'Merge';
 
-  response.body = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].find({});
+  const userId = ctx.state.user._id;
+  response.body = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].find({
+    userId
+  });
+  response.status = 200;
+});
+router.get('/photo/:nr', async ctx => {
+  const response = ctx.response;
+  let img = {
+    "message": ["https://images.dog.ceo/breeds/spaniel-japanese/n02085782_313.jpg", "https://images.dog.ceo/breeds/clumber/n02101556_3736.jpg", "https://images.dog.ceo/breeds/borzoi/n02090622_6851.jpg"],
+    "status": "success"
+  };
+  response.body = img;
+  response.status = 200;
 });
 router.get('/:id', async ctx => {
+  const userId = ctx.state.user._id;
   const garment = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].findOne({
-    id: ctx.params.id
+    _id: ctx.params.id
   });
   const response = ctx.response;
 
   if (garment) {
-    response.body = garment;
-    response.status = 200; // ok
+    if (garment.userId === userId) {
+      response.body = garment;
+      response.status = 200; // ok
+    } else {
+      response.status = 403;
+    }
   } else {
     response.status = 404; // not found
   }
@@ -297,7 +316,7 @@ router.post('/', async ctx => await createGarment(ctx, ctx.request.body, ctx.res
 router.put('/:id', async ctx => {
   const garment = ctx.request.body;
   const id = ctx.params.id;
-  const updId = garment.id;
+  const updId = garment._id;
   const response = ctx.response;
 
   if (updId && updId !== id) {
@@ -309,13 +328,19 @@ router.put('/:id', async ctx => {
   }
 
   if (!updId) await createGarment(ctx, garment, response);else {
+    const userId = ctx.state.user._id;
+    garment.userId = userId;
     const updatedCount = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].update({
-      id: id
+      _id: id
     }, garment);
 
     if (updatedCount === 1) {
       response.body = garment;
       response.status = 200;
+      Object(_utils__WEBPACK_IMPORTED_MODULE_2__["broadcast"])(userId, {
+        type: 'updated',
+        payload: note
+      });
     } else {
       response.body = {
         message: 'Resource no longer exists'
@@ -325,13 +350,16 @@ router.put('/:id', async ctx => {
   }
 });
 router.del('/:id', async ctx => {
-  const recipe = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].findOne({
-    id: ctx.params.id
+  const userId = ctx.state.user._id;
+  const garment = await _store__WEBPACK_IMPORTED_MODULE_1__["default"].findOne({
+    _id: ctx.params.id
   });
-  await _store__WEBPACK_IMPORTED_MODULE_1__["default"].remove({
-    id: ctx.params.id
-  });
-  ctx.response.status = 204;
+  if (garment && userId !== garment.userId) ctx.response.status = 403;else {
+    await _store__WEBPACK_IMPORTED_MODULE_1__["default"].remove({
+      _id: ctx.params.id
+    });
+    ctx.response.status = 204;
+  }
 });
 
 /***/ }),
@@ -360,8 +388,10 @@ class GarmentStore {
     });
   }
 
-  async findAll() {
-    return this.store.find();
+  async findAll(props) {
+    //var id_random = "" + Math.floor(Math.random() * 1000);
+    //garment.id = id_random;
+    return this.store.find(props);
   }
 
   async find(props) {
@@ -374,13 +404,15 @@ class GarmentStore {
 
   async insert(garment) {
     let garmentName = garment.name;
-    if (!garmentName) throw new Error('Missing name property');
-    var id_random = "" + Math.floor(Math.random() * 1000);
-    garment.id = id_random;
+    if (!garmentName) throw new Error('Missing name property'); //var id_random = "" + Math.floor(Math.random() * 1000);
+    //garment.id = id_random;
+
     return this.store.insert(garment);
   }
 
   async update(props, garment) {
+    // this.store.remove(props)
+    // return this.store.insert(garment);
     return this.store.update(props, garment);
   }
 
@@ -454,7 +486,7 @@ app.use(koa_jwt__WEBPACK_IMPORTED_MODULE_8___default()(_utils__WEBPACK_IMPORTED_
 const protectedApiRouter = new koa_router__WEBPACK_IMPORTED_MODULE_3___default.a({
   prefix
 });
-protectedApiRouter.use('/garment', _garment__WEBPACK_IMPORTED_MODULE_7__["router"].routes());
+protectedApiRouter.use('/garments', _garment__WEBPACK_IMPORTED_MODULE_7__["router"].routes());
 app.use(protectedApiRouter.routes()).use(protectedApiRouter.allowedMethods());
 server.listen(3000);
 console.log('server started on port 3000');

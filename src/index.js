@@ -32,7 +32,7 @@ app.use(jwt(jwtConfig));
 
 //protected routes
 const protectedApiRouter = new Router({ prefix });
-protectedApiRouter.use('/garment', garmentRouter.routes());
+protectedApiRouter.use('/garments', garmentRouter.routes());
 app.use(protectedApiRouter.routes())
     .use(protectedApiRouter.allowedMethods());
 
