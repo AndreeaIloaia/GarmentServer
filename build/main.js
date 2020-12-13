@@ -339,7 +339,7 @@ router.put('/:id', async ctx => {
       response.status = 200;
       Object(_utils__WEBPACK_IMPORTED_MODULE_2__["broadcast"])(userId, {
         type: 'updated',
-        payload: note
+        payload: garment
       });
     } else {
       response.body = {

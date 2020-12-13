@@ -83,7 +83,7 @@ router.put('/:id', async (ctx) => {
         if (updatedCount === 1) {
             response.body = garment;
             response.status = 200;
-            broadcast(userId, {type: 'updated', payload: note});
+            broadcast(userId, {type: 'updated', payload: garment});
         } else {
             response.body = {message: 'Resource no longer exists'};
             response.status = 405;
