@@ -10,7 +10,6 @@ export class UserStore {
     }
 
     async insert(user) {
-        //TODO
         return this.store.insert(user);
     };
 }

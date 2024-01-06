@@ -21,7 +21,6 @@ const createGarment = async (ctx, garment, response) => {
 
 router.get('/', async (ctx) => {
     const response = ctx.response;
-    // ctx.body = 'Merge';
     response.body = await garmentStore.find({});
 });
 
